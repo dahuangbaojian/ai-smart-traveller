@@ -1,227 +1,360 @@
-#!/usr/bin/env python3
 """
 文本转PDF工具
-支持中文文本转换为PDF文件
 """
 
-import os
 import logging
+import os
 from datetime import datetime
-from pathlib import Path
-
-# 尝试导入reportlab
-try:
-    from reportlab.lib.colors import HexColor
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-    from reportlab.pdfbase.ttfonts import TTFont
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
-
-    REPORTLAB_AVAILABLE = True
-except ImportError:
-    REPORTLAB_AVAILABLE = False
-    logging.warning("reportlab未安装，PDF生成功能不可用")
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
-def text_to_pdf(text: str, filename_prefix: str = "output") -> str:
+def text_to_pdf(
+    content: str, filename_prefix: str = "document", output_dir: str = "outputs"
+) -> Optional[str]:
     """
-    将文本转换为PDF文件
+    将文本内容转换为PDF文件
 
     Args:
-        text: 要转换的文本内容
+        content: 要转换的文本内容
         filename_prefix: 文件名前缀
+        output_dir: 输出目录
 
     Returns:
-        str: 生成的PDF文件路径，失败时返回空字符串
+        PDF文件路径，如果失败返回None
     """
-    if not REPORTLAB_AVAILABLE:
-        logger.error("reportlab未安装，无法生成PDF")
-        return ""
-
     try:
-        # 创建输出目录
-        output_dir = Path("outputs")
-        output_dir.mkdir(exist_ok=True)
+        # 清理内容中的无效颜色标签
+        content = _clean_content_for_pdf(content)
 
-        # 生成文件名
+        # 确保输出目录存在
+        os.makedirs(output_dir, exist_ok=True)
+
+        # 生成带时间戳的文件名
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{filename_prefix}_{timestamp}.pdf"
-        filepath = output_dir / filename
+        filepath = os.path.join(output_dir, filename)
 
-        # 创建PDF文档
-        doc = SimpleDocTemplate(
-            str(filepath), pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72
-        )
+        # 导入reportlab相关模块
+        from reportlab.lib.pagesizes import A4
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+        from reportlab.lib.colors import HexColor
 
         # 设置中文字体
-        _setup_chinese_font()
+        font_name = _setup_chinese_font()
 
-        # 创建内容
+        # 创建PDF文档
+        doc = SimpleDocTemplate(filepath, pagesize=A4)
         story = []
 
-        # 添加标题
+        # 获取样式
+        styles = getSampleStyleSheet()
+
+        # 创建自定义样式
         title_style = ParagraphStyle(
             "CustomTitle",
-            parent=getSampleStyleSheet()["Title"],
-            fontSize=16,
-            spaceAfter=30,
-            alignment=1,  # 居中对齐
+            parent=styles["Heading1"],
+            fontName=font_name,
+            fontSize=18,
+            spaceAfter=20,
+            alignment=TA_CENTER,
             textColor=HexColor("#2E86AB"),
         )
-        title = Paragraph(f"AI智能旅游咨询专家系统", title_style)
-        story.append(title)
 
-        # 添加生成时间
-        time_style = ParagraphStyle(
-            "CustomTime",
-            parent=getSampleStyleSheet()["Normal"],
-            fontSize=10,
-            spaceAfter=20,
-            alignment=1,  # 居中对齐
-            textColor=HexColor("#666666"),
+        heading_style = ParagraphStyle(
+            "CustomHeading",
+            parent=styles["Heading2"],
+            fontName=font_name,
+            fontSize=14,
+            spaceAfter=12,
+            spaceBefore=20,
+            textColor=HexColor("#A23B72"),
         )
-        time_text = f"生成时间：{datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')}"
-        time_para = Paragraph(time_text, time_style)
-        story.append(time_para)
 
-        # 添加分隔线
+        normal_style = ParagraphStyle(
+            "CustomNormal",
+            parent=styles["Normal"],
+            fontName=font_name,
+            fontSize=11,
+            spaceAfter=6,
+            alignment=TA_JUSTIFY,
+            leading=16,
+        )
+
+        # 添加标题
+        story.append(Paragraph(f"📄 {filename_prefix.replace('_', ' ').title()}", title_style))
         story.append(Spacer(1, 20))
 
-        # 添加正文内容
-        content_style = ParagraphStyle(
-            "CustomContent",
-            parent=getSampleStyleSheet()["Normal"],
-            fontSize=12,
-            spaceAfter=12,
-            leading=18,
-            textColor=HexColor("#333333"),
+        # 添加生成时间
+        story.append(
+            Paragraph(f"生成时间: {datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')}", normal_style)
         )
+        story.append(Spacer(1, 20))
 
-        # 处理文本内容，支持markdown格式
-        content = _process_markdown_text(text)
-        content_para = Paragraph(content, content_style)
-        story.append(content_para)
+        # 处理内容
+        lines = content.split("\n")
+        current_section = []
 
-        # 生成PDF
+        for line in lines:
+            line = line.strip()
+            if not line:
+                if current_section:
+                    # 处理当前段落
+                    text = " ".join(current_section)
+                    if text:
+                        story.append(Paragraph(text, normal_style))
+                        story.append(Spacer(1, 6))
+                    current_section = []
+                continue
+
+            # 检查是否是标题
+            if line.startswith("**") and line.endswith("**"):
+                # 粗体标题
+                title_text = line.strip("*")
+                story.append(Paragraph(title_text, heading_style))
+                story.append(Spacer(1, 12))
+            elif line.startswith("📍") or line.startswith("🔍"):
+                # 特殊图标标题
+                story.append(Paragraph(line, heading_style))
+                story.append(Spacer(1, 12))
+            elif line.startswith("•") or line.startswith("-"):
+                # 列表项
+                if current_section:
+                    # 先处理之前的段落
+                    text = " ".join(current_section)
+                    if text:
+                        story.append(Paragraph(text, normal_style))
+                        story.append(Spacer(1, 6))
+                    current_section = []
+
+                # 添加列表项
+                story.append(Paragraph(line, normal_style))
+                story.append(Spacer(1, 6))
+            else:
+                # 普通文本行
+                current_section.append(line)
+
+        # 处理最后一个段落
+        if current_section:
+            text = " ".join(current_section)
+            if text:
+                story.append(Paragraph(text, normal_style))
+
+        # 构建PDF
         doc.build(story)
 
         logger.info(f"PDF文件生成成功: {filepath}")
-        return str(filepath)
+        return filepath
 
+    except ImportError as e:
+        logger.error(f"缺少必要的依赖包: {e}")
+        logger.error("请安装: pip install reportlab")
+        return None
     except Exception as e:
         logger.error(f"PDF生成失败: {e}")
-        return ""
-
-
-def _setup_chinese_font():
-    """设置中文字体支持"""
-    try:
-        # 1. 尝试注册系统中文字体
-        font_paths = [
-            "/System/Library/Fonts/PingFang.ttc",  # macOS
-            "/System/Library/Fonts/STHeiti Light.ttc",  # macOS
-            "C:/Windows/Fonts/simsun.ttc",  # Windows
-            "C:/Windows/Fonts/msyh.ttc",  # Windows
-            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",  # Linux
-        ]
-
-        for font_path in font_paths:
-            if os.path.exists(font_path):
-                try:
-                    pdfmetrics.registerFont(TTFont("ChineseFont", font_path))
-                    logger.info(f"成功注册中文字体: {font_path}")
-                    return
-                except Exception as e:
-                    logger.debug(f"注册字体失败: {font_path}, 错误: {e}")
-                    continue
-
-        # 2. 回退到 reportlab 内置字体
-        try:
-            pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
-            logger.info("使用内置中文字体: STSong-Light")
-        except Exception as e:
-            logger.warning(f"内置中文字体注册失败: {e}")
-
-    except Exception as e:
-        logger.error(f"字体设置失败: {e}")
+        return None
 
 
 def _process_markdown_text(text: str) -> str:
     """
-    简单处理markdown文本，转换为HTML格式
+    处理Markdown格式的文本，转换为适合PDF的格式
 
     Args:
-        text: 原始文本
+        text: Markdown格式的文本
 
     Returns:
-        str: 处理后的HTML文本
+        处理后的文本
     """
-    if not text:
-        return ""
+    try:
+        # 简单的Markdown处理
+        lines = text.split("\n")
+        processed_lines = []
 
-    # 简单的markdown转HTML处理
-    processed = text
+        for line in lines:
+            line = line.strip()
+            if not line:
+                processed_lines.append("")
+                continue
 
-    # 处理标题 - 只处理一级标题
-    lines = processed.split("\n")
-    processed_lines = []
-
-    for line in lines:
-        if line.startswith("# "):
-            # 一级标题
-            title = line[2:].strip()
-            processed_lines.append(f"<b>{title}</b>")
-        elif line.startswith("## "):
-            # 二级标题
-            title = line[3:].strip()
-            processed_lines.append(f"<b>{title}</b>")
-        elif line.startswith("### "):
-            # 三级标题
-            title = line[4:].strip()
-            processed_lines.append(f"<b>{title}</b>")
-        elif line.startswith("• ") or line.startswith("- "):
-            # 列表项
-            item = line[2:].strip()
-            processed_lines.append(f"• {item}")
-        elif line.strip() == "":
-            # 空行
-            processed_lines.append("<br/>")
-        else:
-            # 普通文本
+            # 处理标题
+            if line.startswith("#"):
+                level = len(line) - len(line.lstrip("#"))
+                title = line.lstrip("#").strip()
+                if level == 1:
+                    processed_lines.append(f"**{title}**")
+                elif level == 2:
+                    processed_lines.append(f"**{title}**")
+                else:
+                    processed_lines.append(f"**{title}**")
             # 处理粗体
-            line = line.replace("**", "<b>").replace("**", "</b>")
-            # 处理斜体
-            line = line.replace("*", "<i>").replace("*", "</i>")
-            processed_lines.append(line)
+            elif "**" in line:
+                processed_lines.append(line)
+            # 处理列表
+            elif line.startswith("- ") or line.startswith("• "):
+                processed_lines.append(line)
+            else:
+                processed_lines.append(line)
 
-    # 重新组合文本
-    processed = "\n".join(processed_lines)
+        return "\n".join(processed_lines)
 
-    return processed
+    except Exception as e:
+        logger.error(f"Markdown处理失败: {e}")
+        return text
+
+
+def _clean_content_for_pdf(content: str) -> str:
+    """
+    清理内容，移除或替换不适合PDF的格式
+
+    Args:
+        content: 原始内容
+
+    Returns:
+        清理后的内容
+    """
+    try:
+        import re
+
+        # 移除HTML颜色标签
+        content = re.sub(r'<font\s+color="[^"]*">(.*?)</font>', r"\1", content)
+
+        # 移除其他HTML标签
+        content = re.sub(r"<[^>]+>", "", content)
+
+        # 移除可能的颜色警告标记
+        content = re.sub(r'<font\s+color="warning">(.*?)</font>', r"⚠️ \1", content)
+        content = re.sub(r'<font\s+color="error">(.*?)</font>', r"❌ \1", content)
+        content = re.sub(r'<font\s+color="success">(.*?)</font>', r"✅ \1", content)
+
+        # 清理多余的空行
+        content = re.sub(r"\n\s*\n\s*\n", "\n\n", content)
+
+        # 移除可能的特殊字符
+        content = re.sub(
+            r'[^\w\s\u4e00-\u9fff\u3000-\u303f\uff00-\uffef.,!?;:()\[\]{}"\'-_+=<>/\\|@#$%^&*~`📍🔍⚠️❌✅•\n]',
+            "",
+            content,
+        )
+
+        return content.strip()
+
+    except Exception as e:
+        logger.error(f"内容清理失败: {e}")
+        return content
+
+
+def _setup_chinese_font() -> str:
+    """
+    设置中文字体，解决PDF乱码问题
+
+    Returns:
+        可用的字体名称
+    """
+    try:
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+        import platform
+
+        system = platform.system()
+        logger.info(f"检测到系统: {system}")
+
+        # 尝试注册系统字体
+        if system == "Darwin":  # macOS
+            system_fonts = [
+                "/System/Library/Fonts/STHeiti Light.ttc",
+                "/System/Library/Fonts/STHeiti Medium.ttc",
+                "/System/Library/Fonts/ArialHB.ttc",
+                "/Library/Fonts/Arial Unicode MS.ttf",
+            ]
+
+            for font_path in system_fonts:
+                if os.path.exists(font_path):
+                    try:
+                        font_name = f"SystemFont_{os.path.basename(font_path)}"
+                        pdfmetrics.registerFont(TTFont(font_name, font_path))
+                        logger.info(f"成功注册系统字体: {font_path}")
+                        return font_name
+                    except Exception as e:
+                        logger.debug(f"注册字体失败 {font_path}: {e}")
+                        continue
+
+        elif system == "Linux":  # Linux
+            system_fonts = [
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+            ]
+
+            for font_path in system_fonts:
+                if os.path.exists(font_path):
+                    try:
+                        font_name = f"SystemFont_{os.path.basename(font_path)}"
+                        pdfmetrics.registerFont(TTFont(font_name, font_path))
+                        logger.info(f"成功注册系统字体: {font_path}")
+                        return font_name
+                    except Exception as e:
+                        logger.debug(f"注册字体失败 {font_path}: {e}")
+                        continue
+
+        # 回退到内置中文字体
+        try:
+            pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+            logger.info("使用内置中文字体: STSong-Light")
+            return "STSong-Light"
+        except Exception as e:
+            logger.debug(f"内置字体注册失败: {e}")
+
+        # 最后回退到默认字体
+        logger.warning("无法找到中文字体，使用默认字体（可能出现乱码）")
+        return "Helvetica"
+
+    except Exception as e:
+        logger.error(f"字体设置失败: {e}")
+        return "Helvetica"
+
+
+def create_sample_pdf() -> Optional[str]:
+    """
+    创建示例PDF文件，用于测试
+
+    Returns:
+        PDF文件路径
+    """
+    sample_content = """# 旅游咨询示例
+
+## 目的地信息
+
+**北京旅游指南**
+
+北京是中国的首都，拥有丰富的历史文化遗产。
+
+### 主要景点
+• 故宫博物院
+• 长城
+• 天坛公园
+• 颐和园
+
+### 最佳旅游时间
+春秋两季气候宜人，是游览北京的最佳时间。
+
+### 小贴士
+建议游览3-5天，注意避开节假日高峰。
+
+---
+*本PDF由AI智能旅游咨询系统生成*"""
+
+    return text_to_pdf(sample_content, "sample_travel_guide")
 
 
 if __name__ == "__main__":
-    # 测试功能
-    test_text = """
-# 测试标题
-
-这是一个测试文本，用于验证PDF生成功能。
-
-## 功能特点
-• 支持中文显示
-• 自动字体设置
-• 时间戳标记
-• 格式美化
-
-**重要提示**：请确保已安装reportlab库。
-"""
-
-    result = text_to_pdf(test_text, "test")
+    # 测试PDF生成
+    result = create_sample_pdf()
     if result:
-        print(f"PDF生成成功: {result}")
+        print(f"示例PDF生成成功: {result}")
     else:
-        print("PDF生成失败")
+        print("示例PDF生成失败")
