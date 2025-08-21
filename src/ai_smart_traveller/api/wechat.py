@@ -22,7 +22,7 @@ memory_manager = app_components["memory_manager"]
 wecom_service = WeComService()
 
 
-@router.post("/callback")
+@router.post("/callback/xingjiyun")
 @error_handler("微信回调处理")
 async def handle_callback(request: Request):
     """
@@ -112,7 +112,7 @@ async def _process_message_async(body: bytes, msg_signature: str, timestamp: str
         logger.error(f"处理微信消息失败: {e}")
         # 发送错误提示给用户
         try:
-            user_id = message.get("from_user") if 'message' in locals() else "unknown"
+            user_id = message.get("from_user") if "message" in locals() else "unknown"
             await wecom_service.send_markdown_message(user_id, "❌ 消息处理失败，请重试")
         except:
             pass
