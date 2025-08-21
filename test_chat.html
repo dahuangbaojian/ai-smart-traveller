@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI智能旅游咨询专家 - 测试页面</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.8.0/lib/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.8.0/styles/github.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; font-weight: 300; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .chat-container { padding: 30px; }
+        .input-section { background: #f8f9fa; padding: 25px; border-radius: 15px; margin-bottom: 30px; border: 2px solid #e9ecef; }
+        .input-group { display: flex; gap: 15px; margin-bottom: 20px; }
+        .input-field { flex: 1; padding: 20px 25px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 18px; transition: all 0.3s ease; outline: none; min-height: 60px; }
+        .input-field:focus { border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+        .send-btn { padding: 20px 35px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; white-space: nowrap; min-height: 60px; }
+        .send-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3); }
+        .send-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .api-config { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .api-config label { font-weight: 600; color: #495057; }
+        .api-config input { padding: 8px 12px; border: 1px solid #ced4da; border-radius: 6px; font-size: 14px; }
+        .response-section { background: white; border: 2px solid #e9ecef; border-radius: 15px; overflow: hidden; }
+        .response-header { background: #f8f9fa; padding: 15px 25px; border-bottom: 2px solid #e9ecef; font-weight: 600; color: #495057; display: flex; justify-content: space-between; align-items: center; }
+        .response-content { padding: 25px; min-height: 200px; line-height: 1.6; }
+        .loading { text-align: center; padding: 40px; color: #6c757d; }
+        .spinner { display: inline-block; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px; border: 1px solid #f5c6cb; margin-top: 15px; }
+        .success { background: #d4edda; color: #155724; padding: 15px; border-radius: 8px; border: 1px solid #c3e6cb; margin-top: 15px; }
+        .markdown-content { font-size: 16px; }
+        .markdown-content h1, .markdown-content h2, .markdown-content h3, .markdown-content h4, .markdown-content h5, .markdown-content h6 { margin-top: 1.5em; margin-bottom: 0.5em; color: #2c3e50; }
+        .markdown-content h1 { font-size: 2em; } .markdown-content h2 { font-size: 1.5em; } .markdown-content h3 { font-size: 1.25em; }
+        .markdown-content p { margin-bottom: 1em; }
+        .markdown-content code { background: #f8f9fa; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 0.9em; }
+        .markdown-content pre { background: #f8f9fa; padding: 15px; border-radius: 8px; overflow-x: auto; margin: 1em 0; }
+        .markdown-content pre code { background: none; padding: 0; }
+        .markdown-content blockquote { border-left: 4px solid #667eea; padding-left: 15px; margin: 1em 0; color: #6c757d; font-style: italic; }
+        .markdown-content ul, .markdown-content ol { margin: 1em 0; padding-left: 2em; }
+        .markdown-content li { margin-bottom: 0.5em; }
+        .markdown-content table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        .markdown-content th, .markdown-content td { border: 1px solid #dee2e6; padding: 8px 12px; text-align: left; }
+        .markdown-content th { background: #f8f9fa; font-weight: 600; }
+        .clear-btn { padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; transition: all 0.3s ease; }
+        .clear-btn:hover { background: #5a6268; }
+        @media (max-width: 768px) { .container { margin: 10px; border-radius: 15px; } .header { padding: 20px; } .header h1 { font-size: 2em; } .chat-container { padding: 20px; } .input-group { flex-direction: column; } .api-config { flex-direction: column; align-items: stretch; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI智能旅游咨询专家</h1>
+        </div>
+
+        <div class="chat-container">
+            <div class="input-section">
+                <!-- 用户ID: test_user (固定) -->
+                
+                <div class="input-group">
+                    <input type="text" id="questionInput" class="input-field" placeholder="请输入你的旅游问题，比如：我想去北京旅游，有什么建议？" maxlength="500">
+                    <button id="sendBtn" class="send-btn">发送问题</button>
+                </div>
+            </div>
+
+            <div class="response-section">
+                <div class="response-header">
+                    <span>AI回复</span>
+                    <button id="clearBtn" class="clear-btn">清空</button>
+                </div>
+                <div id="responseContent" class="response-content">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>等待你的问题...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    try { return hljs.highlight(code, { language: lang }).value; } catch (err) {}
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true,
+            gfm: true
+        });
+
+        const questionInput = document.getElementById('questionInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const responseContent = document.getElementById('responseContent');
+        const clearBtn = document.getElementById('clearBtn');
+
+        async function sendQuestion() {
+            const question = questionInput.value.trim();
+            if (!question) { showError('请输入问题'); return; }
+
+            const userId = 'test_user'; // 固定用户ID
+
+            setLoading(true);
+            questionInput.disabled = true;
+            sendBtn.disabled = true;
+
+            try {
+                const response = await fetch(`/chat/chat`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-user-id': userId
+                    },
+                    body: JSON.stringify({ question: question })
+                });
+
+                if (!response.ok) { throw new Error(`HTTP ${response.status}: ${response.statusText}`); }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResponse(data.response || '收到回复');
+                } else {
+                    showError(data.error_message || '请求失败');
+                }
+            } catch (error) {
+                console.error('请求错误:', error);
+                showError(`请求失败: ${error.message}`);
+            } finally {
+                setLoading(false);
+                questionInput.disabled = false;
+                sendBtn.disabled = false;
+            }
+        }
+
+        function setLoading(loading) {
+            if (loading) {
+                responseContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>AI正在思考中...</p></div>';
+            }
+        }
+
+        function showResponse(reply) {
+            try {
+                const htmlContent = marked.parse(reply);
+                responseContent.innerHTML = `<div class="markdown-content">${htmlContent}</div>`;
+                responseContent.querySelectorAll('pre code').forEach((block) => { hljs.highlightElement(block); });
+            } catch (error) {
+                console.error('Markdown解析错误:', error);
+                responseContent.innerHTML = `<div class="markdown-content"><p>${reply}</p></div>`;
+            }
+        }
+
+        function showError(message) {
+            responseContent.innerHTML = `<div class="error"><strong>错误:</strong> ${message}</div>`;
+            console.error('错误信息:', message);
+        }
+
+        function clearResponse() {
+            responseContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>等待你的问题...</p></div>';
+        }
+
+        sendBtn.addEventListener('click', sendQuestion);
+        clearBtn.addEventListener('click', clearResponse);
+
+        questionInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQuestion(); }
+        });
+
+        window.addEventListener('load', () => {
+            console.log('🚀 AI智能旅游咨询专家测试页面已加载');
+            console.log('💡 确保你的后端服务正在运行');
+            console.log('🔧 接口地址: /chat/chat (相对路径)');
+            console.log('📝 用户ID: test_user (固定)');
+        });
+    </script>
+</body>
+</html>
