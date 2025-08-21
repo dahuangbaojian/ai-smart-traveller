@@ -42,11 +42,6 @@ class Settings(BaseSettings):
     QIANWEN_MODEL_NAME: str = "qwen-turbo"
     QIANWEN_TEMPERATURE: float = 0.7
 
-    # Ollama配置
-    OLLAMA_BASE_URL: str = "http://localhost:11434"  # Ollama 服务地址
-    OLLAMA_MODEL_NAME: str = "gemma3:1b"  # 默认 Ollama 模型
-    OLLAMA_TEMPERATURE: float = 0.7  # 默认温度
-
     # Redis配置
     USE_REDIS_CACHE: str = "true"  # 改为字符串，手动解析
     REDIS_HOST: str = "localhost"
@@ -61,10 +56,6 @@ class Settings(BaseSettings):
     WECOM_TOKEN: Optional[str] = None
     WECOM_ENCODING_AES_KEY: Optional[str] = None
 
-    # NSQ配置 - 集群模式
-    NSQ_LOOKUPD_ADDRESS: str = "127.0.0.1:4161"
-    NSQ_NSQD_ADDRESS: str = "127.0.0.1:4151"
-
     # 阿里云OSS配置
     OSS_ENDPOINT: str = "https://oss-cn-shanghai.aliyuncs.com"
     OSS_ACCESS_KEY: str = "your_access_key"
@@ -78,12 +69,6 @@ class Settings(BaseSettings):
 
     # 语音识别服务配置
     VOICE_SERVICE_TYPE: str = "whisper"  # 可选: "whisper", "aliyun"
-
-    # Elasticsearch配置
-    ES_HOST: str = "localhost"
-    ES_PORT: int = 9200
-    ES_USERNAME: Optional[str] = None
-    ES_PASSWORD: Optional[str] = None
 
     # 聊天会话管理配置
     CHAT_MAX_MESSAGES: int = 20  # 最大消息数量

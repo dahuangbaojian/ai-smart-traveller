@@ -243,3 +243,5 @@ secrets/
 *.crt
 *.p12
 *.pfx
+
+outputs/

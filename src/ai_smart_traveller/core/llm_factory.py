@@ -17,7 +17,7 @@ class LLMFactory:
 
     @staticmethod
     def create_llm(
-        llm_type: Literal["qianwen", "gpt4", "gpt5", "ollama"] = "gpt4",
+        llm_type: Literal["qianwen", "gpt4", "gpt5"] = "gpt4",
         model_name: Optional[str] = None,
         temperature: Optional[float] = None,
         **kwargs,
@@ -43,8 +43,6 @@ class LLMFactory:
                 return LLMFactory._create_gpt4_llm(model_name, temperature, **kwargs)
             if llm_type == "gpt5":
                 return LLMFactory._create_gpt5_llm(model_name, **kwargs)
-            if llm_type == "ollama":
-                return LLMFactory._create_ollama_llm(model_name, temperature, **kwargs)
 
         except Exception as e:
             logger.error(f"LLM创建失败，类型: {llm_type}, 错误: {e}")
@@ -139,45 +137,6 @@ class LLMFactory:
 
         logger.info(f"GPT-5 LLM创建成功，模型: {gpt5_kwargs['model_name']}")
         return llm
-
-    @staticmethod
-    def _create_ollama_llm(
-        model_name: Optional[str] = None, temperature: Optional[float] = None, **kwargs
-    ):
-        """创建 Ollama LLM 实例"""
-        try:
-            try:
-                # 优先使用新的 langchain-ollama 包
-                from langchain_ollama import OllamaLLM as Ollama
-            except ImportError:
-                # 降级到旧的 langchain_community.llms
-                from langchain_community.llms import Ollama
-            from .config import get_settings
-
-            settings = get_settings()
-
-            # 使用配置中的默认值或指定的参数
-            model = model_name or settings.OLLAMA_MODEL_NAME
-            temp = temperature if temperature is not None else settings.OLLAMA_TEMPERATURE
-            base_url = settings.OLLAMA_BASE_URL
-
-            llm = Ollama(
-                model=model,
-                temperature=temp,
-                base_url=base_url,
-                **kwargs,
-            )
-
-            # 添加标识，便于后续判断
-            llm._custom_llm_type = "ollama"
-            llm._is_ollama = True
-
-            logger.info(f"Ollama LLM创建成功，模型: {model}, 地址: {base_url}")
-            return llm
-
-        except Exception as e:
-            logger.error(f"Ollama LLM创建失败: {e}")
-            raise
 
     @staticmethod
     def get_default_llm_type() -> str:
