@@ -4,9 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI智能旅游咨询专家 - 测试页面</title>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- 使用多个CDN源，提高可用性 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <script src="https://unpkg.com/marked@9.1.6/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.8.0/lib/highlight.min.js"></script>
+    <script src="https://unpkg.com/highlight.js@11.8.0/lib/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.8.0/styles/github.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/highlight.js@11.8.0/styles/github.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
@@ -48,6 +57,135 @@
         .markdown-content th { background: #f8f9fa; font-weight: 600; }
         .clear-btn { padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; transition: all 0.3s ease; }
         .clear-btn:hover { background: #5a6268; }
+        
+        /* 对话历史样式 */
+        .message {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid;
+        }
+        
+        .user-message {
+            background: #f8f9fa;
+            border-left-color: #667eea;
+        }
+        
+        .ai-message {
+            background: #ffffff;
+            border-left-color: #28a745;
+            border: 1px solid #e9ecef;
+        }
+        
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .role {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .time {
+            color: #6c757d;
+            font-size: 12px;
+        }
+        
+        .message-content {
+            line-height: 1.6;
+        }
+        
+        .user-message .message-content p {
+            margin: 0;
+            color: #495057;
+        }
+        
+        /* 确保对话中的表格样式正确 */
+        .message-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1em 0;
+        }
+        
+        .message-content th,
+        .message-content td {
+            border: 1px solid #dee2e6;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        
+        .message-content th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        
+        .message-content td {
+            background: #ffffff;
+        }
+        
+        /* 确保对话中的代码块样式正确 */
+        .message-content code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9em;
+        }
+        
+        .message-content pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1em 0;
+        }
+        
+        .message-content pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        /* 优化列表样式 */
+        .message-content ul,
+        .message-content ol {
+            margin: 1em 0;
+            padding-left: 1.5em;
+        }
+        
+        .message-content li {
+            margin-bottom: 0.8em;
+            line-height: 1.6;
+            position: relative;
+        }
+        
+        .message-content ul li {
+            list-style: none;
+        }
+        
+        .message-content ul li::before {
+            content: "•";
+            color: #667eea;
+            font-weight: bold;
+            font-size: 1.2em;
+            position: absolute;
+            left: -1.2em;
+            top: 0;
+        }
+        
+        .message-content ol li {
+            list-style: decimal;
+            padding-left: 0.5em;
+        }
+        
+        .message-content ol li::marker {
+            color: #667eea;
+            font-weight: 600;
+        }
+        
         @media (max-width: 768px) { .container { margin: 10px; border-radius: 15px; } .header { padding: 20px; } .header h1 { font-size: 2em; } .chat-container { padding: 20px; } .input-group { flex-direction: column; } .api-config { flex-direction: column; align-items: stretch; } }
     </style>
 </head>
@@ -59,7 +197,9 @@
 
         <div class="chat-container">
             <div class="input-section">
-                <!-- 用户ID: test_user (固定) -->
+                <div class="api-config">
+                    <span style="color: #6c757d; font-size: 14px;">用户ID: <span id="userIdDisplay">生成中...</span></span>
+                </div>
                 
                 <div class="input-group">
                     <input type="text" id="questionInput" class="input-field" placeholder="请输入你的旅游问题，比如：我想去北京旅游，有什么建议？" maxlength="500">
@@ -73,10 +213,7 @@
                     <button id="clearBtn" class="clear-btn">清空</button>
                 </div>
                 <div id="responseContent" class="response-content">
-                    <div class="loading">
-                        <div class="spinner"></div>
-                        <p>等待你的问题...</p>
-                    </div>
+                    <!-- 等待用户输入问题 -->
                 </div>
             </div>
         </div>
@@ -97,19 +234,138 @@
         const questionInput = document.getElementById('questionInput');
         const sendBtn = document.getElementById('sendBtn');
         const responseContent = document.getElementById('responseContent');
+        const userIdDisplay = document.getElementById('userIdDisplay');
         const clearBtn = document.getElementById('clearBtn');
-
+        
+                // 用户ID管理
+        let currentUserId = null;
+        
+        // 对话历史管理
+        let conversationHistory = [];
+        
+        // 生成随机用户ID
+        function generateUserId() {
+            const timestamp = Date.now().toString(36);
+            const random = Math.random().toString(36).substr(2, 5);
+            return `user_${timestamp}_${random}`;
+        }
+        
+        // 从localStorage获取或生成新的用户ID
+        function getOrCreateUserId() {
+            const stored = localStorage.getItem('ai_traveller_user_id');
+            const storedTime = localStorage.getItem('ai_traveller_user_time');
+            
+            // 检查是否过期（7天）
+            const now = Date.now();
+            const expireTime = 7 * 24 * 60 * 60 * 1000; // 7天
+            
+            if (stored && storedTime && (now - parseInt(storedTime)) < expireTime) {
+                return stored;
+            }
+            
+            // 生成新的用户ID
+            const newUserId = generateUserId();
+            localStorage.setItem('ai_traveller_user_id', newUserId);
+            localStorage.setItem('ai_traveller_user_time', now.toString());
+            return newUserId;
+        }
+        
+        // 初始化用户ID
+        function initUserId() {
+            currentUserId = getOrCreateUserId();
+            userIdDisplay.textContent = currentUserId;
+            console.log('🆔 当前用户ID:', currentUserId);
+            
+            // 加载对话历史
+            loadConversationHistory();
+        }
+        
+        // 加载对话历史
+        function loadConversationHistory() {
+            const stored = localStorage.getItem(`ai_traveller_conversation_${currentUserId}`);
+            if (stored) {
+                try {
+                    conversationHistory = JSON.parse(stored);
+                    console.log('📚 加载对话历史:', conversationHistory.length, '条记录');
+                    displayConversation();
+                } catch (e) {
+                    console.error('加载对话历史失败:', e);
+                    conversationHistory = [];
+                }
+            }
+        }
+        
+        // 保存对话历史
+        function saveConversationHistory() {
+            try {
+                localStorage.setItem(`ai_traveller_conversation_${currentUserId}`, JSON.stringify(conversationHistory));
+            } catch (e) {
+                console.error('保存对话历史失败:', e);
+            }
+        }
+        
+        // 添加对话记录
+        function addToConversation(role, content) {
+            const message = {
+                role: role, // 'user' 或 'assistant'
+                content: content,
+                timestamp: new Date().toLocaleString('zh-CN')
+            };
+            conversationHistory.push(message);
+            saveConversationHistory();
+        }
+        
+        // 显示完整对话
+        function displayConversation() {
+            if (conversationHistory.length === 0) {
+                responseContent.innerHTML = '<!-- 等待用户输入问题 -->';
+                return;
+            }
+            
+            let html = '';
+            conversationHistory.forEach((msg, index) => {
+                const isUser = msg.role === 'user';
+                const roleText = isUser ? '👤 用户' : '🤖 AI';
+                const roleClass = isUser ? 'user-message' : 'ai-message';
+                
+                html += `
+                    <div class="message ${roleClass}">
+                        <div class="message-header">
+                            <span class="role">${roleText}</span>
+                            <span class="time">${msg.timestamp}</span>
+                        </div>
+                        <div class="message-content">
+                            ${isUser ? `<p><strong>${msg.content}</strong></p>` : marked.parse(msg.content)}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            responseContent.innerHTML = html;
+            
+            // 高亮代码块
+            responseContent.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            
+            // 滚动到底部
+            responseContent.scrollTop = responseContent.scrollHeight;
+        }
+        
         async function sendQuestion() {
             const question = questionInput.value.trim();
             if (!question) { showError('请输入问题'); return; }
 
-            const userId = 'test_user'; // 固定用户ID
+            const userId = currentUserId;
 
             setLoading(true);
             questionInput.disabled = true;
             sendBtn.disabled = true;
 
             try {
+                // 添加用户问题到对话历史
+                addToConversation('user', question);
+                
                 const response = await fetch(`/chat/chat`, {
                     method: 'POST',
                     headers: { 
@@ -124,7 +380,11 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showResponse(data.response || '收到回复');
+                    const aiResponse = data.response || '收到回复';
+                    // 添加AI回复到对话历史
+                    addToConversation('assistant', aiResponse);
+                    // 显示完整对话
+                    displayConversation();
                 } else {
                     showError(data.error_message || '请求失败');
                 }
@@ -161,7 +421,11 @@
         }
 
         function clearResponse() {
-            responseContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>等待你的问题...</p></div>';
+            // 清空对话历史
+            conversationHistory = [];
+            saveConversationHistory();
+            responseContent.innerHTML = '<!-- 等待用户输入问题 -->';
+            console.log('🗑️ 对话历史已清空');
         }
 
         sendBtn.addEventListener('click', sendQuestion);
@@ -171,11 +435,42 @@
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQuestion(); }
         });
 
+        // 检查外部资源是否加载成功
+        function checkResources() {
+            if (typeof marked === 'undefined') {
+                console.warn('⚠️ marked.js 加载失败，Markdown渲染可能不可用');
+                // 创建简单的markdown解析器作为备用
+                window.marked = {
+                    parse: function(text) {
+                        return text.replace(/\n/g, '<br>');
+                    }
+                };
+            } else {
+                console.log('✅ marked.js 加载成功');
+            }
+            
+            if (typeof hljs === 'undefined') {
+                console.warn('⚠️ highlight.js 加载失败，代码高亮可能不可用');
+                // 创建简单的代码高亮器作为备用
+                window.hljs = {
+                    highlightElement: function() {},
+                    highlight: function(code) { return code; }
+                };
+            } else {
+                console.log('✅ highlight.js 加载成功');
+            }
+        }
+
         window.addEventListener('load', () => {
             console.log('🚀 AI智能旅游咨询专家测试页面已加载');
             console.log('💡 确保你的后端服务正在运行');
             console.log('🔧 接口地址: /chat/chat (相对路径)');
-            console.log('📝 用户ID: test_user (固定)');
+            
+            // 初始化用户ID
+            initUserId();
+            
+            // 延迟检查资源加载状态
+            setTimeout(checkResources, 1000);
         });
     </script>
 </body>
